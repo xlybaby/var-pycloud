@@ -3,9 +3,9 @@ import sys,os
 import tornado.ioloop
 import tornado.web
 
-from var.init.populateWebController import WebApplication 
-from var.context.initializedInstancePool import ApplicationContext 
-from var.init.fileBasedConfiguration import ApplicationProperties
+from app.init.populateWebController import WebApplication 
+from app.context.initializedInstancePool import ApplicationContext 
+from app.init.fileBasedConfiguration import ApplicationProperties
 
 class Main(object):
     
@@ -15,10 +15,10 @@ class Main(object):
         #application = WebApplication.populate(p_properties=properties)
         configuration = ApplicationProperties(p_command)
         ioLoop = tornado.ioloop.IOLoop.current()
-        
+
         ApplicationContext.getContext().putInstance( p_name='var.application.configuration', p_obj=configuration )
         ApplicationContext.getContext().putInstance( p_name='var.ioloop.current', p_obj=ioLoop )
-        configuration.list()
+
         ioLoop.start()
  
 if __name__ == '__main__':
