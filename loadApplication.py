@@ -11,12 +11,16 @@ class Main(object):
     
     @staticmethod
     def init(p_command=None):
-        #properties
-        #application = WebApplication.populate(p_properties=properties)
-        configuration = ApplicationProperties(p_command)
+        
+        properties = ApplicationProperties(p_command)
+        application = WebApplication()
+        application.populate(p_properties=properties)
+        if application is None:
+            raise Exception("Applcation can't be initialized!")
         ioLoop = tornado.ioloop.IOLoop.current()
 
-        ApplicationContext.getContext().putInstance( p_name='var.application.configuration', p_obj=configuration )
+        ApplicationContext.getContext().putInstance( p_name='var.application.context', p_obj=application )
+        ApplicationContext.getContext().putInstance( p_name='var.application.configuration', p_obj=properties )
         ApplicationContext.getContext().putInstance( p_name='var.ioloop.current', p_obj=ioLoop )
 
         ioLoop.start()
