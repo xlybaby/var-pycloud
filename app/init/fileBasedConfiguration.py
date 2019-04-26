@@ -11,13 +11,13 @@ class ApplicationProperties(object):
             file = open(self.__project_path + '/application.properties', 'r')
             for line in file.readlines():
                 pair = line.split("=")
-                self.__properties[pair[0]] = pair[1]
+                self.__properties[pair[0]] = pair[1].strip('\n\r\t ')
         
         for item in p_command.items():
             self.__properties[item[0]] = item[1]
             
     def getProperty(self, p_key):
-        return self.__properties(p_key) if p_key in self.__properties else None
+        return self.__properties[p_key] if p_key in self.__properties else None
     
     def list(self):
         for item in self.__properties.items():

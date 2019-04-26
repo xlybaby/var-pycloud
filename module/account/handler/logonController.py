@@ -18,16 +18,21 @@ class Controller(object):
             self._instance[self._cls] = self._cls()
         return self._instance[self._cls]
     
-class UcSubmitTemplateByUserId(tornado.web.RequestHandler):
+class SignUp(tornado.web.RequestHandler):
     def get(self):
-        self.write("UcSubmitTemplateByUserId")
+        self.write("UcFectchTemplateById")
 
-class UcSaveTemplateByUserId(tornado.web.RequestHandler):
+class SignIn(tornado.web.RequestHandler):
     def get(self):
-        self.write("UcSaveTemplateByUserId")
+        self.write("UcFectchTemplatesByUserId")
 
+class SignOut(tornado.web.RequestHandler):
+    def get(self):
+        self.write("UcFectchSharedTemplates")
+    
 def mapping():    
     list = []
-    list.append((RequestMapping.submit_template_with_uid, UcSubmitTemplateByUserId))
-    list.append((RequestMapping.save_template_with_uid, UcSaveTemplateByUserId))
+    list.append((RequestMapping.user_sign_in, SignIn))
+    list.append((RequestMapping.user_sign_out, SignOut))
+    list.append((RequestMapping.user_sign_up, SignUp))
     return list

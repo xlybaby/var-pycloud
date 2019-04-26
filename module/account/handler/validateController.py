@@ -18,16 +18,21 @@ class Controller(object):
             self._instance[self._cls] = self._cls()
         return self._instance[self._cls]
     
-class UcSubmitTemplateByUserId(tornado.web.RequestHandler):
+class imageCode(tornado.web.RequestHandler):
     def get(self):
-        self.write("UcSubmitTemplateByUserId")
+        pass
 
-class UcSaveTemplateByUserId(tornado.web.RequestHandler):
+class dynamicCode(tornado.web.RequestHandler):
     def get(self):
-        self.write("UcSaveTemplateByUserId")
+        pass
 
+class humanIdentify(tornado.web.RequestHandler):
+    def get(self):
+        pass
+    
 def mapping():    
     list = []
-    list.append((RequestMapping.submit_template_with_uid, UcSubmitTemplateByUserId))
-    list.append((RequestMapping.save_template_with_uid, UcSaveTemplateByUserId))
+    list.append((RequestMapping.get_image_code, imageCode))
+    list.append((RequestMapping.get_dynamic_code, dynamicCode))
+    list.append((RequestMapping.get_human_identify, humanIdentify))
     return list
