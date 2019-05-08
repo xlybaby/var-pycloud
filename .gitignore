@@ -102,6 +102,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-/.project
-/.pydevproject
-/.settings/
+.project
+.pydevproject
+.settings/
