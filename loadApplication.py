@@ -17,7 +17,7 @@ def parse(content):
     print('Title: %s'%(selector.xpath('//html/head/title/text()').get().strip('\r\n\t ')) )
     
 async def worker(idx, parent):
-    print('worker[%s] starts'%(idx))
+    #print('worker[%s] starts'%(idx))
     while True:
         print('worker[%s] check dir - %s'%(idx, parent+'/'+idx))
         for file in os.listdir( parent+'/'+idx ):
@@ -52,7 +52,7 @@ def Main(p_command=None):
     partitiondir = properties.getProperty(p_key='application.persistence.fetchdir') + '/'  + properties.getProperty(p_key='application.persistence.defaultPartition') 
     if( os.path.exists( partitiondir ) ):
         for vol in os.listdir( partitiondir ):
-            if vol != 'exception':
+            if vol.lower().startswith('volumn'):
                 vols.append(vol)
     print('%d volumns in partion'%(len(vols)))
         
