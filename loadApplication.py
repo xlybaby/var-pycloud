@@ -12,9 +12,18 @@ from app.init.fileBasedConfiguration import ApplicationProperties
 from app.context.initializedInstancePool import ApplicationContext 
 
 def parse(content):
-    selector = Selector(text=content)
+    print(content)
+    selector = Selector(text=content,type='html')
     #print('content: ', content)
-    print('Title: %s'%(selector.xpath('//html/head/title/text()').get().strip('\r\n\t ')) )
+    items = selector.xpath("//ul[contains(@class, 'hot-list')]/li/a")
+    #print(items)
+    values=''
+    for item in items:
+        val={}
+        values+=item.xpath('@href').get() + ' - '
+        values+=item.xpath('text()').get() + '\n'
+        print('<a href="%s">%s</a>'%(item.xpath('@href').get(), item.xpath('text()').get()))
+    return values    
     
 async def worker(idx, parent):
     #print('worker[%s] starts'%(idx))
@@ -23,8 +32,20 @@ async def worker(idx, parent):
         for file in os.listdir( parent+'/'+idx ):
             try:
                 print('work[%s] find file - %s'%(idx, file))
-                f = open(parent+'/'+idx+'/'+file, 'rb')
-                parse(content=f.read())
+                f = open(parent+'/'+idx+'/'+file, 'r')
+                props = {}
+                for line in f.readlines():
+                    if len(line.strip()) > 0 and not line.startswith('#') :
+                        pair = line.split("=")
+                        if len(pair) == 2:
+                            props[pair[0]] = pair[1].strip('\n\r\t ')
+                
+                html = open(props['htmlPath'], 'r')
+                values = parse(content=html.read())
+                
+                res = open('F:\\var\\data\\result', 'ab+')
+                res.write(bytes(values,encoding='utf-8'))
+                res.close()
                 #f.close()
                 #os.remove(parent+'/'+idx+'/'+file)
             except Exception as e:
