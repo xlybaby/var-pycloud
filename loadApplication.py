@@ -14,6 +14,8 @@ from app.init.populateWebComponent import WebApplication
 from app.init.fileBasedConfiguration import ApplicationProperties
 from app.context.initializedInstancePool import ApplicationContext 
 
+inq = queues.Queue()
+
 async def async_fetch_https(url):
     header = {
         #"User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36"
@@ -79,55 +81,83 @@ def parse(content):
     return values    
     
 async def worker(idx, parent):
-    #print('worker[%s] starts'%(idx))
-    while True:
-        print('worker[%s] check dir - %s'%(idx, parent+'/'+idx))
-        for file in os.listdir( parent+'/'+idx ):
-            try:
-                print('work[%s] find file - %s'%(idx, file))
-                f = open(parent+'/'+idx+'/'+file, 'r')
-                props = {}
-                for line in f.readlines():
-                    if len(line.strip()) > 0 and not line.startswith('#') :
-                        pair = line.split("=")
-                        if len(pair) == 2:
-                            props[pair[0]] = pair[1].strip('\n\r\t ')
-                
-                html = open(props['htmlPath'], 'r')
-                task = json.loads(props['task'])
-                #values = parse(content=html.read())
-                values={}
-                values['children']=[]
-                values['scenarioId']=task['scenarioId']
-                values['userId']=task['userId']
-                if task['sceType'] == 'corpus':
-                    corpus(pageno=0, pages=task['pages'], content=html.read(), parent=values)
-                
-                print(values)
-                res = open('F:\\var\\data\\result', 'ab+')
-                res.write(bytes(json.dumps(values),encoding='utf-8'))
-                res.close()
-                #f.close()
-                #os.remove(parent+'/'+idx+'/'+file)
-            except Exception as e:
-                print("worker[%s] encounter exception: %s, parent dir: %s" % (idx, e, parent))
-                #remove exception file to log dir
-                #shutil.move(parent+'/'+idx+'/'+file, parent+'/exception/'+file)
-            finally:
-                if f:
-                    f.close()
-                    os.remove(parent+'/'+idx+'/'+file)
+    props = ApplicationContext.getContext().getInstance( p_name='var.application.configuration' )
+    datadir = props.getProperty(p_key='application.persistence.rootdir')
+    async for task in inq:
                     
-        await gen.sleep(5)
+        try:
+            preLen=task[0:6]
+            print('Got task, preLen: %s'%(preLen))
+            print('Task: %s'%(task[6:int(preLen)+6]))
+            taskObj = json.loads(task[6:int(preLen)+6])
+            print(taskObj)
+            selector = Selector(text=task[6+int(preLen):],type='html')
+            items = selector.xpath("//ul[contains(@class, 'hot-list')]/li/a")
+            for item in items:
+                print('<a href="%s">%s</a>'%(item.xpath('@href').get(), item.xpath('text()').get()))
+        except Exception as e:
+            print("Exception: %s" % (e))
+        finally:
+            inq.task_done()
+
+    #print('worker[%s] starts'%(idx))
+#     while True:
+#         print('worker[%s] check dir - %s'%(idx, parent+'/'+idx))
+#         for file in os.listdir( parent+'/'+idx ):
+#             try:
+#                 print('work[%s] find file - %s'%(idx, file))
+#                 f = open(parent+'/'+idx+'/'+file, 'r')
+#                 props = {}
+#                 for line in f.readlines():
+#                     if len(line.strip()) > 0 and not line.startswith('#') :
+#                         pair = line.split("=")
+#                         if len(pair) == 2:
+#                             props[pair[0]] = pair[1].strip('\n\r\t ')
+#                 
+#                 html = open(props['htmlPath'], 'r')
+#                 task = json.loads(props['task'])
+#                 #values = parse(content=html.read())
+#                 values={}
+#                 values['children']=[]
+#                 values['scenarioId']=task['scenarioId']
+#                 values['userId']=task['userId']
+#                 if task['sceType'] == 'corpus':
+#                     corpus(pageno=0, pages=task['pages'], content=html.read(), parent=values)
+#                 
+#                 print(values)
+#                 res = open('F:\\var\\data\\result', 'ab+')
+#                 res.write(bytes(json.dumps(values),encoding='utf-8'))
+#                 res.close()
+#                 #f.close()
+#                 #os.remove(parent+'/'+idx+'/'+file)
+#             except Exception as e:
+#                 print("worker[%s] encounter exception: %s, parent dir: %s" % (idx, e, parent))
+#                 #remove exception file to log dir
+#                 #shutil.move(parent+'/'+idx+'/'+file, parent+'/exception/'+file)
+#             finally:
+#                 if f:
+#                     f.close()
+#                     os.remove(parent+'/'+idx+'/'+file)
+#                     
+#         await gen.sleep(5)
 
 class MainHandler(tornado.web.RequestHandler):
-    async def get(self):
-        self.write('Working...')
+    
+    async def post(self):
+        print('reqeust incoming...%s'%(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        #print(self.request.body)
+        #print(self.request.headers)
+        #print(str(self.request.body, encoding="gb2312"))
+        await inq.put(str(self.request.body, encoding="gb2312"));
+        #await inq.put(self.request.body);
+        #print('[%s] -- put message into queue'%(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        self.write('Gotta')
         
 def Main(p_command=None):        
+    print('PyCloud loaded!')
     properties = ApplicationProperties(p_command)
     #dlist = dashboard.populate() + [ (RequestMapping.submit_fetch_url_task, MainHandler)]
-    application = tornado.web.Application([ (r'/', MainHandler),])
+    application = tornado.web.Application([ (r'/sfut', MainHandler),])
     application.listen(properties.getProperty(p_key='server.port'))
     
     vols=[]
