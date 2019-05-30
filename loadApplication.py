@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys,os,time,shutil,json
+import sys,os,time,shutil,json,traceback
 import datetime
 import urllib3
 import urllib3.contrib.pyopenssl
@@ -13,17 +13,17 @@ from tornado import gen, httpclient, ioloop, queues
 from app.init.populateWebComponent import WebApplication 
 from app.init.fileBasedConfiguration import ApplicationProperties
 from app.context.initializedInstancePool import ApplicationContext 
+from idlelib.iomenu import encoding
 
 inq = queues.Queue()
-
-async def async_fetch_https(url):
-    header = {
-        #"User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36"
+fetch_header = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) VAR/1.0.0.1"
     }
+async def async_fetch_https(url):
+    
     http_client = httpclient.AsyncHTTPClient()
     try:
-        response = await http_client.fetch(url,method='GET',headers=header)
+        response = await http_client.fetch(url,method='GET',headers=fetch_header)
         return response.body
     except Exception as e:
         print("Error: %s" % e)
@@ -41,6 +41,49 @@ def fetch_https(url):
     http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
     response = http.request('GET', url, None, header)
     return response.data
+
+async def async_corpus(tablelist, content, html, charset):
+    res = {}
+    articles = []
+    
+    try:
+        selector = Selector(text=html,type='html')
+        items = selector.xpath(tablelist['selector']['xpath'])
+        for item in items:
+            it = {}
+            href = item.xpath('@href').get()
+            title = item.xpath('text()').get()
+            it['href'] = href
+            it['title'] = title
+            fetched = await async_fetch_https(href)
+            contentSel = Selector(text=str(fetched,encoding=charset),type='html')
+            article = contentSel.xpath(content['selector']['xpath']).xpath('text()').getall()
+            it['article'] = article
+            articles.append(it)
+        res['articles'] = articles
+        return res
+    except Exception as e:
+        print("Error: %s" % e)
+        return ''
+
+async def async_banner(base, imgTag, titleTag, html):
+    res = {}
+    imgs = []
+    print(base,imgTag, titleTag)
+    
+    selector = Selector(text=html,type='html')
+    items = selector.xpath(base)
+    for item in items:
+        it = {}
+        href = item.xpath('.//'+imgTag).xpath('@src').get()
+        title = item.xpath('.//'+titleTag).xpath('text()').get()
+        it['href'] = href
+        it['title'] = title
+        #fetched = await async_fetch_https(href)
+        imgs.append(it)
+    res['imgs'] = imgs
+    return res
+    
         
 def corpus(pageno, pages, content, parent=None):
     page = pages[pageno]
@@ -90,13 +133,33 @@ async def worker(idx, parent):
             print('Got task, preLen: %s'%(preLen))
             print('Task: %s'%(task[6:int(preLen)+6]))
             taskObj = json.loads(task[6:int(preLen)+6])
-            print(taskObj)
-            selector = Selector(text=task[6+int(preLen):],type='html')
-            items = selector.xpath("//ul[contains(@class, 'hot-list')]/li/a")
-            for item in items:
-                print('<a href="%s">%s</a>'%(item.xpath('@href').get(), item.xpath('text()').get()))
+            charset = taskObj['charset']
+            print('Task charset: %s'%(charset))
+            type =  taskObj['sceType']
+            print('Task type: %s'%(type))
+            
+            body = str(task[6+int(preLen):], encoding=charset)
+            if type == 'corpus':
+                res = await async_corpus(tablelist=taskObj['pages'][0], content=taskObj['pages'][1], html=body, charset=charset)
+                articles = res['articles']
+                for article in articles:
+                    print('print result time: %s'%( datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') ))
+                    print('href: %s'%(article['href']))
+                    print('title: %s'%(article['title']))
+                    print('content: %s'%(article['article']))
+                    print('\n=======================\n')
+            if type == 'banner':
+                res = await async_banner(base=taskObj['baseXPath'], imgTag=taskObj['imgTag'], titleTag=taskObj['titleTag'], html=body)
+                imgs = res['imgs']
+                for img in imgs:
+                    print('Title: %s\nSrc: %s\n==================='%(img['title'],img['href']))
+#             selector = Selector(text=task[6+int(preLen):],type='html')
+#             items = selector.xpath("//ul[contains(@class, 'hot-list')]/li/a")
+#             for item in items:
+#                 print('<a href="%s">%s</a>'%(item.xpath('@href').get(), item.xpath('text()').get()))
         except Exception as e:
             print("Exception: %s" % (e))
+            traceback.print_exc(file=sys.stdout)
         finally:
             inq.task_done()
 
@@ -148,12 +211,12 @@ class MainHandler(tornado.web.RequestHandler):
         #print(self.request.body)
         #print(self.request.headers)
         #print(str(self.request.body, encoding="gb2312"))
-        await inq.put(str(self.request.body, encoding="gb2312"));
+        await inq.put(self.request.body);
         #await inq.put(self.request.body);
         #print('[%s] -- put message into queue'%(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         self.write('Gotta')
         
-def Main(p_command=None):        
+def Main(p_command=None):       
     print('PyCloud loaded!')
     properties = ApplicationProperties(p_command)
     #dlist = dashboard.populate() + [ (RequestMapping.submit_fetch_url_task, MainHandler)]
