@@ -66,19 +66,53 @@ async def async_corpus(tablelist, content, html, charset):
         print("Error: %s" % e)
         return ''
 
-async def async_banner(base, imgTag, titleTag, html):
+async def async_banner(container, iterator, img, title, html, sceId, uId):
     res = {}
     imgs = []
-    print(base,imgTag, titleTag)
+    #print(container, iterator, img, title)
+    props = ApplicationContext.getContext().getInstance( p_name='var.application.configuration' )
+    datadir = props.getProperty(p_key='application.persistence.rootdir')
     
     selector = Selector(text=html,type='html')
-    items = selector.xpath(base)
-    for item in items:
+    if 'xpath' in container:
+        con = selector.xpath(container['xpath'])
+    elif 'class' in container:
+        con = selector.css(container['class'])
+    #print(con)    
+    if 'xpath' in iterator:
+        iter = con.xpath(iterator['xpath'])
+    elif 'class' in iterator:
+        iter = con.css(iterator['class'])
+    #print(iter)        
+    for item in iter:
         it = {}
-        href = item.xpath('.//'+imgTag).xpath('@src').get()
-        title = item.xpath('.//'+titleTag).xpath('text()').get()
+        href = ''
+        lbl = ''
+        if 'xpath' in img:
+            href = item.xpath(img['xpath']).get()
+        elif 'class' in img:
+            href = item.css(img['class']).get()
+        elif 'tag' in img:
+            href = item.xpath(img['tag']).get()
+            
+        if 'xpath' in title:
+            lbl = item.xpath(title['xpath']).get()
+        elif 'class' in title:
+            lbl = item.css(title['class']).get()
+        elif 'tag' in img:
+            lbl = item.xpath(title['tag']).get()
+        
+        imgbytes = await async_fetch_https(href)      
+        filename =  datetime.datetime.now().strftime('%Y%m%d%H%M%S')+'_'+sceId+'_'+href[href.rfind('/')+1:]
+        contentFile = datadir+"/"+uId+'/'+ filename
+        fp = open(contentFile, 'wb+')
+        fp.write(imgbytes)
+        fp.close()
+        #href = item.xpath('.//'+img).xpath('@src').get()
+        #lbl = item.xpath('.//'+title).xpath('text()').get()
         it['href'] = href
-        it['title'] = title
+        it['title'] = lbl
+        it['file'] = filename
         #fetched = await async_fetch_https(href)
         imgs.append(it)
     res['imgs'] = imgs
@@ -149,10 +183,10 @@ async def worker(idx, parent):
                     print('content: %s'%(article['article']))
                     print('\n=======================\n')
             if type == 'banner':
-                res = await async_banner(base=taskObj['baseXPath'], imgTag=taskObj['imgTag'], titleTag=taskObj['titleTag'], html=body)
+                res = await async_banner( container=taskObj['container'], iterator=taskObj['iterator'], img=taskObj['imgTag'], title=taskObj['titleTag'], html=body, sceId=taskObj['scenarioId'], uId=taskObj['userId'] )
                 imgs = res['imgs']
                 for img in imgs:
-                    print('Title: %s\nSrc: %s\n==================='%(img['title'],img['href']))
+                    print('[%s]\nTitle: %s\nSrc: %s\nFile: %s\n==================='%(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),img['title'],img['href'],img['file']))
 #             selector = Selector(text=task[6+int(preLen):],type='html')
 #             items = selector.xpath("//ul[contains(@class, 'hot-list')]/li/a")
 #             for item in items:
