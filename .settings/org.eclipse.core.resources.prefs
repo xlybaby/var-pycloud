@@ -1,4 +1,5 @@
 eclipse.preferences.version=1
+encoding//app/init/fileBasedConfiguration.py=utf-8
 encoding//var/context/initializedInstancePool.py=utf-8
 encoding//var/init/fileBasedConfiguration.py=utf-8
 encoding//var/init/populateWebController.py=utf-8
